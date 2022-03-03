@@ -1,0 +1,53 @@
+---
+- name: Stop MySQL
+  become: true
+  shell: "systemctl stop mysql && sleep 5"
+
+- name: Perform reboot
+  reboot:
+
+- name: Wait for mysql to fully start
+  become: true
+  shell: "sleep 15"
+
+- name: Check mysql status
+  become: true
+  shell: "systemctl status mysql"
+
+- name: Check cluster size from mysql logs
+  become: true
+  shell: "tail -n 200 /var/log/mysql/hi_pxc* | grep 'Synchronized with group, ready for connections' | wc -l"
+  register: cluster_size_result
+
+- name: Node has rejoined cluster?
+  ansible.builtin.shell: echo "This server has rejoined the mysql cluster"
+  when: cluster_size_result.stdout | int == 1
+  register: cluster_healthy
+
+- name: Node has NOT rejoined cluster?
+  ansible.builtin.shell: echo "Wait..This server has NOT rejoined the mysql cluster"
+  when: cluster_size_result.stdout | int != 1
+
+- name: Cause failure if unhealthy
+  fail:
+    msg: An unhealthy node or service has been detected. Aborting playbook execution.
+  when: cluster_healthy is skipped
+
+- name: Verify cluster size #2
+  become: true
+  ansible.builtin.shell: curl -sLI -m 2 -w "%{http_code}\\n" "http://localhost:9200" -o /dev/null
+  register: cluster_check_2
+
+- name: Node has rejoined cluster?
+  ansible.builtin.shell: echo "This server has rejoined the mysql cluster"
+  when: cluster_check_2.stdout | int == 200
+  register: cluster_healthy_2
+
+- name: Node has NOT rejoined cluster?
+  ansible.builtin.shell: echo "Wait..This server has NOT rejoined the mysql cluster"
+  when: cluster_check_2.stdout | int != 200
+
+- name: Cause failure if unhealthy
+  fail:
+    msg: An unhealthy node or service has been detected. Aborting playbook execution.
+  when: cluster_healthy_2 is skipped

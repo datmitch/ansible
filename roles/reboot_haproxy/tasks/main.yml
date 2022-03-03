@@ -1,0 +1,12 @@
+# This role will be used to reboot the mysql haproxy nodes
+---
+- name: Stop keepalived
+  become: true
+  shell: "systemctl stop keepalived && sleep 5"
+
+- name: Perform reboot
+  reboot:
+
+- name: Start keepalived
+  become: true
+  shell: "systemctl start keepalived"

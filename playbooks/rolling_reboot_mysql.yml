@@ -1,0 +1,48 @@
+---
+- hosts: restore
+  roles:
+    - reboot_restore
+
+- hosts: slave
+  roles:
+    - reboot_slave
+
+- hosts: gluster
+  order: reverse_sorted
+  serial: 1
+  roles:
+    - reboot_gluster
+
+- hosts: nodes573
+  roles:
+    - reboot_cluster
+
+- hosts: nodes572
+  roles:
+    - reboot_cluster
+
+- hosts: nodes571
+  roles:
+    - reboot_cluster
+
+- hosts: proxy2-2
+  roles:
+    - haproxy_backup_check
+    - reboot_haproxy
+    - haproxy_backup_check
+
+- hosts: proxy2-1
+  roles:
+    - reboot_haproxy
+    - haproxy_master_check
+
+- hosts: proxy1-2
+  roles:
+    - haproxy_backup_check
+    - reboot_haproxy
+    - haproxy_backup_check
+
+- hosts: proxy1-1
+  roles:
+    - reboot_haproxy
+    - haproxy_master_check

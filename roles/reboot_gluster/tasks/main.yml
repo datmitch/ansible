@@ -1,0 +1,39 @@
+# This role will be used to reboot the mysql gluster nodes
+---
+- name: Stop glusterfsd
+  become: true
+  shell: "systemctl stop glusterfsd"
+
+- name: Stop glusterd
+  become: true
+  shell: "systemctl stop glusterd"
+
+- name: Kill remaining gluster processes
+  become: true
+  shell: "ps -ef | grep gluster | grep -v grep | awk '{print $2}' | xargs kill"
+
+- name: Perform reboot
+  reboot:
+
+- name: Check glusterd status
+  become: true
+  shell: "sleep 8 && gluster vol status"
+
+- name: Gluster brick health count
+  become: true
+  shell: "gluster vol status | grep Y | wc -l"
+  register: gluster_health_result
+
+- name: Gluster healthy
+  ansible.builtin.shell: echo "All gluster bricks are now online"
+  when: gluster_health_result.stdout | int == 6
+  register: gluster_healthy
+
+- name: Gluster NOT healthy
+  ansible.builtin.shell: echo "Wait...Not all gluster bricks are online yet"
+  when: gluster_health_result.stdout | int != 6
+
+- name: Cause failure if unhealthy
+  fail:
+    msg: An unhealthy node or service has been detected. Aborting playbook execution.
+  when: gluster_healthy is skipped

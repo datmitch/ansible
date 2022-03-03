@@ -1,0 +1,20 @@
+# This role will be used to reboot the mysql haproxy nodes
+---
+- name: Confirm master haproxy node
+  become: true
+  shell: "ip add | wc -l"
+  register: haproxy_master_check
+
+- name: Node is master?
+  ansible.builtin.shell: echo "The expected haproxy master node is the current master"
+  when: haproxy_master_check.stdout | int == 10
+  register: expected_master
+
+- name: Node is backup?
+  ansible.builtin.shell: echo "Wait...The expected haproxy master node is currently the backup"
+  when: haproxy_master_check.stdout | int == 8
+
+- name: Cause failure if the current master is not the expected node
+  fail:
+    msg: The current master haproxy node is NOT the expected node. Aborting playbook execution.
+  when: expected_master is skipped

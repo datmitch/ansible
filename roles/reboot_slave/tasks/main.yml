@@ -1,0 +1,35 @@
+# This role will be used to reboot the mysql slave nodes
+---
+- name: Stop MySQL
+  become: true
+  shell: "systemctl stop mysql && sleep 5"
+
+- name: Perform reboot
+  reboot:
+
+- name: Wait for mysql to fully start
+  become: true
+  shell: "sleep 15"
+
+- name: Check mysql status
+  become: true
+  shell: "systemctl status mysql"
+
+- name: Slave status check
+  become: true
+  shell: "tail -n 100 /var/log/mysql/hi_pxc* | grep -e 'initialized, starting replication' -e 'connected to master' -e 'ready for connections' | wc -l"
+  register: slave_status_result
+
+- name: Slave is healthy
+  ansible.builtin.shell: echo "The slave is healthy and ready for connections"
+  when: slave_status_result.stdout | int == 3
+  register: slave_healthy
+
+- name: Slave is NOT healthy
+  ansible.builtin.shell: echo "Wait...The slave is NOT healthy and NOT ready for connections"
+  when: slave_status_result.stdout | int != 3
+
+- name: Cause failure if unhealthy
+  fail:
+    msg: An unhealthy node or service has been detected. Aborting playbook execution.
+  when: slave_healthy is skipped
